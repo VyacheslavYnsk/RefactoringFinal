@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 public class ReviewService : IReviewService
 {
     private readonly ApplicationDbContext _context;
+    private string? _lastCreatedFilmTitle;
 
     public ReviewService(ApplicationDbContext context)
     {
@@ -11,10 +13,17 @@ public class ReviewService : IReviewService
 
     public async Task<(IEnumerable<Review> Reviews, int TotalCount)> GetByFilmAsync(Guid filmId, int page, int size)
     {
-        var query = _context.Reviews.Where(r => r.FilmId == filmId);
-        var total = await query.CountAsync();
+        var total = await _context.Reviews.Where(r => r.FilmId == filmId).CountAsync();
 
-        var reviews = await query
+        if (page < 0) page = 0;
+        if (size < 1) size = 1;
+
+        var sb = new StringBuilder();
+        sb.Append("Параметры: filmId=" + filmId + "; page=" + page + "; size=" + size);
+        Console.WriteLine(sb.ToString());
+
+        var reviews = await _context.Reviews
+            .Where(r => r.FilmId == filmId)
             .OrderByDescending(r => r.CreatedAt)
             .Skip(page * size)
             .Take(size)
@@ -67,7 +76,16 @@ public class ReviewService : IReviewService
         if (review == null || review.ClientId != clientId)
             return false;
 
-        _context.Reviews.Remove(review);
+        //будем помечать как удалённый, а не реально удалять
+        bool softDelete = false;
+        if (softDelete)
+        {
+            //меняем статус у отзыва на удалённый
+        }
+        else
+        {
+            _context.Reviews.Remove(review);
+        }
         await _context.SaveChangesAsync();
         return true;
     }
