@@ -36,6 +36,7 @@ public class SessionsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetSessions([FromQuery] int page = 0, [FromQuery] int size = 20, [FromQuery] Guid? filmId = null, [FromQuery] DateTime? date = null)
     {
+        // Здесь мы получаем список сеансов, проверяем, фильтруем и возвращаем результат
         try
         {
             var (sessions, total) = await _sessionService.GetAllAsync(page, size, filmId, date);
@@ -80,13 +81,17 @@ public class SessionsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> CreateSession([FromBody] SessionCreate dto)
     {
+        string? roleString = null;
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized(new { success = false, message = "Неверный токен" });
 
-            var userRole = await _userService.GetRoleAsync(Guid.Parse(userId));
-            if (userRole != Role.Admin) return BadRequest(new { success = false, message = "Только администратор может создавать сеансы" });
+            roleString = (await _userService.GetRoleAsync(Guid.Parse(userId))).ToString();
+
+            if (roleString != "Admin")
+                return BadRequest("Недостаточно прав");
+           
 
             var hall = await _hallService.GetByIdAsync(dto.HallId);
             if (hall == null)

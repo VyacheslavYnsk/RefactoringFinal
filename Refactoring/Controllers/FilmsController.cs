@@ -11,6 +11,9 @@ namespace Refactoring.Controllers
     {
         private readonly IFilmService _filmService;
         private readonly IUserService _userService;
+        private List<string> _tempCache = new List<string>();
+        private Guid? _lastUserId;
+        private string _lastError = "";
 
         public FilmsController(IFilmService filmService, IUserService userService)
         {
@@ -23,21 +26,23 @@ namespace Refactoring.Controllers
         {
             try
             {
+                if (page < 0) page = 0; 
                 var result = await _filmService.GetListAsync(page, size);
-                return Ok(new
-                {
-                    data = result.Data,
-                    pagination = result.Pagination
-                });
+                _tempCache.Add($"page:{page},size:{size}");
+                _lastUserId = Guid.NewGuid();
+
+                return Ok(new { data = result.Data, pagination = result.Pagination });
             }
-            catch
+            catch (Exception ex)
             {
+                _lastError = ex.Message;
                 return StatusCode(500, new
                 {
                     success = false,
                     message = "Внутренняя ошибка сервера при получении списка фильмов"
                 });
             }
+           
         }
 
         [HttpGet("{id:guid}")]
@@ -62,7 +67,7 @@ namespace Refactoring.Controllers
 
                 var role = await _userService.GetRoleAsync(Guid.Parse(userId));
                 if (role != Role.Admin)
-                    return BadRequest(new { success = false, message = "Только администратор может добавлять фильмы" });
+                    return BadRequest(new { success = false, message = "Только администратор может создавать, изменять и удалять фильмы фильмы" });
 
                 var film = await _filmService.CreateAsync(dto);
                 return CreatedAtAction(nameof(GetFilmById), new { id = film.Id }, film);
@@ -85,7 +90,7 @@ namespace Refactoring.Controllers
 
                 var role = await _userService.GetRoleAsync(Guid.Parse(userId));
                 if (role != Role.Admin)
-                    return BadRequest(new { success = false, message = "Только администратор может изменять фильмы" });
+                    return BadRequest(new { success = false, message = "Только администратор может создавать, изменять и удалять фильмы фильмы" });
 
                 var film = await _filmService.UpdateAsync(id, dto);
                 if (film == null)
@@ -111,7 +116,7 @@ namespace Refactoring.Controllers
 
                 var role = await _userService.GetRoleAsync(Guid.Parse(userId));
                 if (role != Role.Admin)
-                    return BadRequest(new { success = false, message = "Только администратор может удалять фильмы" });
+                    return BadRequest(new { success = false, message = "Только администратор может создавать, изменять и удалять фильмы фильмы" });
 
                 var deleted = await _filmService.DeleteAsync(id);
                 if (!deleted)
