@@ -3,63 +3,134 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity.Data;
 using Model.Register;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
 
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 
 
 namespace Refactoring.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-
     public class AuthController : ControllerBase
     {
-        private readonly IAuthService _authService;
+        private readonly ApplicationDbContext _context;
+        private readonly IConfiguration _configuration;
+
         private readonly ITokenRevocationService _tokenRevocationService;
 
 
-        public AuthController(IAuthService authService, ITokenRevocationService tokenRevocationService)
+        public AuthController(ApplicationDbContext context, IConfiguration configuration, ITokenRevocationService tokenRevocationService)
         {
-            _authService = authService;
+            _context = context;
+            _configuration = configuration;
             _tokenRevocationService = tokenRevocationService;
         }
 
+        
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserRegisterRequest request)
+        public async Task<IActionResult> Register(string email, string password,
+            string firstName, string lastName, Gender gender)
         {
             try
             {
-                if (!ModelState.IsValid)
+                if (string.IsNullOrEmpty(email) || email.Length < 5 || !email.Contains("@"))
+                    return BadRequest(new { success = false, message = "Email invalid" });
+
+                if (string.IsNullOrEmpty(password) || password.Length < 6)
+                    return BadRequest(new { success = false, message = "Password invalid" });
+
+
+                if (string.IsNullOrEmpty(firstName) || firstName.Length < 2)
+                    return BadRequest(new { success = false, message = "First name invalid" });
+
+                if (string.IsNullOrEmpty(lastName) || lastName.Length < 2)
+                    return BadRequest(new { success = false, message = "Last name invalid" });
+
+
+                
+                var userExists = await _context.Users.AnyAsync(u => u.Email == email);
+                if (userExists)
                 {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "Неверные данные",
-                        errors = ModelState.Values.SelectMany(v => v.Errors)
-                    });
+                    return BadRequest(new { success = false, message = "User already exists" });
                 }
 
-                var result = await _authService.RegisterAsync(request);
+                
+                var userId = Guid.NewGuid();
+                var now = DateTime.UtcNow;
 
-                if (result.Success)
+                var user = new UserDto
                 {
-                    return StatusCode(201, new AuthResponse
-                    {
-                        Success = true,
-                        AccesToken = result.AccesToken,
-                        Message = "Пользователь успешно зарегистрирован"
-                    });
-                }
+                    Id = userId,
+                    Email = email,
+                    FirstName = firstName,
+                    LastName = lastName,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    Role = Role.User,
+                    Gender = gender,
+                    Password = BCrypt.Net.BCrypt.HashPassword(password)
 
-                return BadRequest(new { success = false, message = result.Message });
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.ASCII.GetBytes("G7@!f4#Zq8&lN9^kP2*eR1$hW3%tX6@zB5");
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Email, user.Email),
+                };
+
+
+                var tokenDescriptor = new SecurityTokenDescriptor
+                {
+                    Subject = new ClaimsIdentity(claims),
+                    Expires = DateTime.UtcNow.AddHours(24), 
+                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+                };
+
+                var token = tokenHandler.CreateToken(tokenDescriptor);
+                var tokenString = tokenHandler.WriteToken(token);
+
+                
+                
+                
+                
+
+                
+                return StatusCode(201, new
+                {
+                    success = true,
+                    message = "User registered successfully",
+                    token = tokenString,
+                    user = new User
+                    {
+                        Id = userId,
+                        Email = email,
+                        FirstName = firstName,
+                        LastName = lastName,
+                        Role = user.Role,
+                        Gender = gender,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    }
+                });
             }
-
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = "Внутренняя ошибка сервера" });
+                
+                return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
 
-
+        
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserLoginRequest request)
         {
@@ -70,38 +141,68 @@ namespace Refactoring.Controllers
                     return BadRequest(new
                     {
                         success = false,
-                        message = "Неверные данные",
+                        message = "Invalid data",
                         errors = ModelState.Values.SelectMany(v => v.Errors)
                     });
                 }
 
-                var result = await _authService.LoginAsync(request);
+                
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                if (user == null)
+                {
+                    return BadRequest(new { success = false, message = "User not found" });
+                }
 
-                if (result.Success)
+                if (!BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
                 {
-                    if (result.Success)
+                    return BadRequest(new { success = false, message = "Invalid password" });
+                }
+
+                
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.ASCII.GetBytes("G7@!f4#Zq8&lN9^kP2*eR1$hW3%tX6@zB5");
+
+                var claims = new List<Claim>
                 {
-                    return StatusCode(201, new AuthResponse
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Email, user.Email),
+                };
+                
+
+                var tokenDescriptor = new SecurityTokenDescriptor
+                {
+                    Subject = new ClaimsIdentity(claims),
+                    Expires = DateTime.UtcNow.AddHours(24),
+                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+                };
+
+                var token = tokenHandler.CreateToken(tokenDescriptor);
+                var tokenString = tokenHandler.WriteToken(token);
+
+                
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Login successful",
+                    token = tokenString,
+                    user = new
                     {
-                        Success = true,
-                        AccesToken = result.AccesToken,
-                        Message = "Пользователь успешно зарегистрирован"
-                    });
-                }
-                }
-
-                return BadRequest(new { success = false, message = result.Message });
+                        id = user.Id,
+                        email = user.Email,
+                        firstName = user.FirstName,
+                        lastName = user.LastName,
+                        role = user.Role
+                    }
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = "Внутренняя ошибка сервера" });
+                
+                return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
-
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
 
         [HttpPost("logout")]
         [Authorize]
@@ -130,7 +231,6 @@ namespace Refactoring.Controllers
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
-
 
     }
 }

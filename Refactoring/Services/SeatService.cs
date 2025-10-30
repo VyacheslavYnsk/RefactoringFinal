@@ -48,29 +48,35 @@ public class SeatService : ISeatService
         
         foreach (var seatCreate in seatCreates)
         {
-            
-            var seatDto = new SeatDto
+            var check = await _context.Seats.AnyAsync(s => s.HallId == hallId && s.Number == seatCreate.Number && s.Row == seatCreate.Row);
+            if (!check)
             {
-                Id = Guid.NewGuid(),
-                Row = seatCreate.Row,
-                CategotyId = seatCreate.CategoryId,
-                Number = seatCreate.Number,
-                Status = Status.Available,
-                HallId = hallId
-            };
 
-            var seat = new Seat
-            {
-                Id = seatDto.Id,
-                Row = seatDto.Row,
-                Number = seatDto.Number,
-                CategotyId = seatDto.CategotyId,
-                Status = Status.Available,
-            };
 
-            seats.Add(seat);
 
-            _context.Seats.Add(seatDto);
+                var seatDto = new SeatDto
+                {
+                    Id = Guid.NewGuid(),
+                    Row = seatCreate.Row,
+                    CategotyId = seatCreate.CategoryId,
+                    Number = seatCreate.Number,
+                    Status = Status.Available,
+                    HallId = hallId
+                };
+
+                var seat = new Seat
+                {
+                    Id = seatDto.Id,
+                    Row = seatDto.Row,
+                    Number = seatDto.Number,
+                    CategotyId = seatDto.CategotyId,
+                    Status = Status.Available,
+                };
+
+                seats.Add(seat);
+
+                _context.Seats.Add(seatDto);
+            }
             
         }
 
