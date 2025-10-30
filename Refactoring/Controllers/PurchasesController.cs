@@ -8,12 +8,13 @@ using System.Threading.Tasks;
 [Route("purchases")]
 public class PurchasesController : ControllerBase
 {
-    private readonly IPurchaseService _purchaseService;
+    private readonly PurchaseFacade _purchaseService;
     private readonly IUserService _userService;
+    private bool _debugMode = true;
 
-    public PurchasesController(IPurchaseService purchaseService, IUserService userService)
+    public PurchasesController(PurchaseFacade purchaseFacade, IUserService userService)
     {
-        _purchaseService = purchaseService;
+        _purchaseService = purchaseFacade;
         _userService = userService;
     }
 
@@ -25,11 +26,16 @@ public class PurchasesController : ControllerBase
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new { message = "�������� �����" });
+                return Unauthorized(new { message = "Неверный токен" });
 
             var clientId = Guid.Parse(userId);
             var (purchases, total) = await _purchaseService.GetByClientAsync(clientId, page, size);
+            var pages = (int)Math.Ceiling(total / (double)size);
 
+            if (_debugMode)
+            {
+                Console.WriteLine($"DEBUG: Получено {purchases.Count()} покупок для клиента {clientId}");
+            }
             return Ok(new
             {
                 data = purchases,
@@ -44,7 +50,7 @@ public class PurchasesController : ControllerBase
         }
         catch
         {
-            return StatusCode(500, new { message = "���������� ������ ������� ��� ��������� ������� �������" });
+            return StatusCode(500, new { message = "Произошла ошибка при получении покупок" });
         }
     }
 
@@ -56,7 +62,7 @@ public class PurchasesController : ControllerBase
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new { message = "�������� �����" });
+                return Unauthorized(new { message = "Неверный токен" });
 
             var purchase = await _purchaseService.GetByIdAsync(id);
             if (purchase.ClientId.ToString() != userId)
@@ -70,7 +76,7 @@ public class PurchasesController : ControllerBase
         }
         catch
         {
-            return StatusCode(500, new { message = "������ ��� ��������� �������" });
+            return StatusCode(500, new { message = "Ошибка при получении покупки" });
         }
     }
 
@@ -82,7 +88,7 @@ public class PurchasesController : ControllerBase
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new { message = "�������� �����" });
+                return Unauthorized(new { message = "Неверный токен" });
 
             var clientId = Guid.Parse(userId);
             var purchase = await _purchaseService.CreateAsync(clientId, dto);
@@ -99,7 +105,7 @@ public class PurchasesController : ControllerBase
         }
         catch
         {
-            return StatusCode(500, new { message = "������ ��� �������� �������" });
+            return StatusCode(500, new { message = "Ошибка при создании покупки" });
         }
     }
 
@@ -111,7 +117,7 @@ public class PurchasesController : ControllerBase
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new { message = "�������� �����" });
+                return Unauthorized(new { message = "Неверный токен" });
 
             var clientId = Guid.Parse(userId);
             var purchase = await _purchaseService.CancelAsync(id, clientId);
@@ -132,7 +138,7 @@ public class PurchasesController : ControllerBase
         }
         catch
         {
-            return StatusCode(500, new { message = "������ ��� ������ �������" });
+            return StatusCode(500, new { message = "Ошибка при отмене покупки" });
         }
     }
 }

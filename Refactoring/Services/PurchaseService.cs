@@ -29,7 +29,7 @@ public class PurchaseService : IPurchaseService
     {
         var purchase = await _context.Purchases.FindAsync(id);
         if (purchase == null)
-            throw new KeyNotFoundException($"������� � ID {id} �� �������");
+            throw new KeyNotFoundException($"Покупка с ID {id} не найдена");
 
         return purchase;
     }
@@ -37,14 +37,14 @@ public class PurchaseService : IPurchaseService
     public async Task<Purchase> CreateAsync(Guid clientId, PurchaseCreate dto)
     {
         if (dto.TicketIds == null || dto.TicketIds.Count == 0)
-            throw new ArgumentException("�� ������� ������ ��� �������");
+            throw new ArgumentException("Не указаны билеты для покупки");
 
         var tickets = await _context.Tickets
             .Where(t => dto.TicketIds.Contains(t.Id))
             .ToListAsync();
 
         if (tickets.Count != dto.TicketIds.Count)
-            throw new InvalidOperationException("��������� ������ �� �������");
+            throw new InvalidOperationException("Некоторые билеты не найдены");
 
         foreach (var ticket in tickets)
         {
@@ -73,16 +73,16 @@ public class PurchaseService : IPurchaseService
     {
         var purchase = await _context.Purchases.FindAsync(id);
         if (purchase == null)
-            throw new KeyNotFoundException($"������� � ID {id} �� �������");
+            throw new KeyNotFoundException($"Покупка с ID {id} не найдена");
 
         if (purchase.ClientId != clientId)
-            throw new UnauthorizedAccessException("������� ����������� ������� ������������");
+            throw new UnauthorizedAccessException("Пользователь не является владельцем покупки");
 
         if (purchase.Status == PurchaseStatus.CANCELLED)
-            throw new InvalidOperationException("������� ��� ��������");
+            throw new InvalidOperationException("Покупка уже отменена");
 
         if (purchase.Status == PurchaseStatus.PAID)
-            throw new InvalidOperationException("���������� �������� ���������� �����");
+            throw new InvalidOperationException("Оплаченные покупки нельзя отменить");
 
         purchase.Status = PurchaseStatus.CANCELLED;
 

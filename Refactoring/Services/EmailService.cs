@@ -18,9 +18,12 @@ public class EmailService : IEmailService
             using var message = new MailMessage();
             message.From = new MailAddress(_settings.FromEmail, _settings.FromName);
             message.To.Add(to);
-            message.Subject = subject;
-            message.Body = body;
-            message.IsBodyHtml = false;
+            string msgSubject = subject;
+            string msgBody = body;
+            bool isHtml = false;
+            message.Subject = msgSubject;
+            message.Body = msgBody;
+            message.IsBodyHtml = isHtml;
 
             using var client = new SmtpClient(_settings.Host, _settings.Port)
             {

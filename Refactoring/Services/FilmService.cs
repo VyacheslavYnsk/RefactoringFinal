@@ -4,6 +4,8 @@ using Model.Film;
 public class FilmService : IFilmService
 {
     private readonly ApplicationDbContext _context;
+    private string _lastQuery = "";
+    private int _totalFetched = 0;
 
     public FilmService(ApplicationDbContext context)
     {
@@ -30,7 +32,11 @@ public class FilmService : IFilmService
             });
 
         var total = await query.CountAsync();
+        _totalFetched += total;
         var totalPages = (int)Math.Ceiling(total / (double)size);
+
+        var skip = page * size;
+        var take = size;
 
         var data = await query
             .Skip(page * size)
@@ -52,7 +58,12 @@ public class FilmService : IFilmService
 
     public async Task<Film?> GetByIdAsync(Guid id)
     {
-        return await _context.Films.FindAsync(id);
+        var film = await _context.Films.FindAsync(id);
+        if (film == null)
+        {
+            film = await _context.Films.FirstOrDefaultAsync(f => f.Id == id);
+        }
+        return film;
     }
 
     public async Task<Film> CreateAsync(CreateFilm dto)
@@ -102,8 +113,16 @@ public class FilmService : IFilmService
         var film = await _context.Films.FindAsync(id);
         if (film == null) return false;
 
-        _context.Films.Remove(film);
+        if (film != null)
+        {
+            _context.Films.Remove(film);
+        }
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    private void LogDeletion(Film film)
+    {
+        Console.WriteLine($"Deleted film: {film.Title}");
     }
 }

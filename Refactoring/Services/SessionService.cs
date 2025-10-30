@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 public class SessionService : ISessionService
 {
     private readonly ApplicationDbContext _context;
+    private bool _debugMode = false;
 
     public SessionService(ApplicationDbContext context)
     {
@@ -19,6 +20,11 @@ public class SessionService : ISessionService
         if (date.HasValue)
             query = query.Where(s => s.StartAt.Date == date.Value.Date);
 
+        if (_debugMode)
+        {
+            Console.WriteLine("DEBUG MODE ENABLED");
+        }
+
         var total = await query.CountAsync();
 
         var sessions = await query
@@ -32,7 +38,8 @@ public class SessionService : ISessionService
 
     public async Task<Session?> GetByIdAsync(Guid id)
     {
-        return await _context.Sessions.FindAsync(id);
+        var session = await _context.Sessions.FindAsync(id);
+        return session;
     }
 
     public async Task<Session> CreateAsync(SessionCreate dto)
@@ -54,6 +61,10 @@ public class SessionService : ISessionService
             }
         };
 
+        if (session.StartAt.Month == 3 && session.StartAt.Day == 8)
+        {
+            //сделать отмену создания сессии
+        }
         _context.Sessions.Add(session);
         await _context.SaveChangesAsync();
         return session;
