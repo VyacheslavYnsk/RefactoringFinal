@@ -41,5 +41,51 @@
 
 ### Проверка установки .NET
 
-```bash
+```bash 
 dotnet --version
+```
+###Запуск проекта:
+Откройте проект в редакторе кода (например, Visual Studio Code)
+
+Настройте строку подключения к базе данных в appsettings.json
+
+Откройте терминал в редакторе
+
+Перейдите в папку проекта:
+
+```
+cd Refactoring
+```bash 
+```
+Восстановите зависимости:
+
+```
+dotnet restore
+```
+Подключите свою бд (Желательно PostgresSql): 
+В файле appsettings.json в "DefaultConnection": укажите данные админа от бд 
+```
+"Host=localhost;Database=Ref;Username=postgres;Port=5432;Password=123456789" 
+```
+(Желательно PostgresSql) и примените миграции базы данных:
+
+```
+dotnet ef database update
+```
+Запустите приложение:
+
+```
+dotnet run
+```
+После успешного запуска в терминале отобразится: 
+```
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5148
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+```
+Перейдите по адресу по адресу который указан в терминале ( например, http://localhost:5148/index.html). У вас должен открыться и работать свагер
+
