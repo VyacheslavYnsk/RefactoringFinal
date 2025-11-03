@@ -47,7 +47,11 @@ dotnet --version
 ### Запуск проекта:
 Откройте проект в редакторе кода (например, Visual Studio Code)
 
-Настройте строку подключения к базе данных в appsettings.json
+Настройте строку подключения к базе данных в appsettings.json: 
+В файле appsettings.json в "DefaultConnection": укажите данные админа от бд 
+```
+"Host=localhost;Database=Ref;Username=postgres;Port=5432;Password=123456789" 
+```
 
 Откройте терминал в редакторе
 
@@ -61,12 +65,7 @@ cd Refactoring
 ```
 dotnet restore
 ```
-Подключите свою бд (Желательно PostgresSql): 
-В файле appsettings.json в "DefaultConnection": укажите данные админа от бд 
-```
-"Host=localhost;Database=Ref;Username=postgres;Port=5432;Password=123456789" 
-```
-(Желательно PostgresSql) и примените миграции базы данных:
+
 
 ```
 dotnet ef database update
